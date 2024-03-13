@@ -111,8 +111,6 @@ int main( int argc, char **argv )
     array[ii] = 100 + (lrand48() % max_value);
 
   
-#if !defined(_OPENMP)
-  
   printf("serial summation\n" );
 
   double tstart = CPU_TIME;
@@ -122,12 +120,13 @@ int main( int argc, char **argv )
       heavy_work_1(array[ii]) +
       heavy_work_2(array[ii]) ;
 			   
-#else
+  double tstop = CPU_TIME;
+  printf("serial summation results to be %g took %g sec\n", result, tstop-tstart);
 			   
   printf("omp summation\n" );
-
-  			    
-  double tstart = CPU_TIME;
+		    
+  result = 0;
+  tstart = CPU_TIME;
   
  #pragma omp parallel shared(result)
   {
@@ -172,8 +171,6 @@ int main( int argc, char **argv )
 
 
 
-#endif
-  
   double tend = CPU_TIME;
 
 
@@ -185,7 +182,7 @@ int main( int argc, char **argv )
   free(array);
   
   printf("The result is %g\nrun took %g of wall-clock time\n\n",
-	 result, tend - tstart );
+	 result, tend - tstop );
 
 
 return 0;
