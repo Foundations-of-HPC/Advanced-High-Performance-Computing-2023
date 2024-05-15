@@ -100,7 +100,7 @@ int delete ( llnode_t *head )
       llnode_t *prev = head;
       head = head->next;
      #if defined(_OPENMP)
-      omp_init_lock( &(prev->lock) );
+      omp_destroy_lock( &(prev->lock) );
      #endif
       free( prev );
     }
@@ -342,7 +342,7 @@ int main ( int argc, char **argv )
 	   #pragma omp task
 	    find_and_insert_parallel( head, new_value ); }
 	  else {
-	   #pragma omp task
+	   #pragma omp task untied
 	    find_and_insert_parallel_alternative( head, new_value ); }
 	  
 	  n++;

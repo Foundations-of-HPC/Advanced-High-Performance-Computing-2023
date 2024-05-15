@@ -438,7 +438,7 @@ node_t * generate_dag(dag_t *p)
       // each node i
       int off   = MAX(p->N_roots, n) + 1;
 
-      // how many noe thera are between the first available
+      // how many nodes there are between the first available
       // and the end of the array
       //
       int tail  = p->N - off;
@@ -471,7 +471,7 @@ node_t * generate_dag(dag_t *p)
       
       // find how many children this node will have
       // it will be
-      //   min_children <=  n_children will <= max_children
+      //   min_children <=  n_children <= max_children
       //
       // NOTE:: >>> we are not checking that we have less than
       //            N * maX_children children, i.e. that
@@ -480,7 +480,7 @@ node_t * generate_dag(dag_t *p)
       //            This is of course uncorrect in general.
       //            However we ignore this additional complication
       //            for the purpose of this example because that
-      //            by construction id very unlikely to happen.
+      //            by construction is unlikely to happen.
       //
       nodes[n].n_children = p->min_children + ( lrand48() % (p->max_children - p->min_children) );
 
