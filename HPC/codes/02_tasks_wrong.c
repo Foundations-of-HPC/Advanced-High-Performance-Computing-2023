@@ -175,7 +175,8 @@ int main( int argc, char **argv )
     PRINTF("\tThread %d is here (%g)\n", me, result );
   }
 
-  
+
+
   double tend = CPU_TIME;
 
 

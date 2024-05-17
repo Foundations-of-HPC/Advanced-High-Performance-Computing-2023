@@ -43,21 +43,21 @@
 #define max_default    20000 // the maximum argument to heavy_work_? functions
 #define chunk_default  10  // the size of the small work chunks
 
-
 #define NANO_PAUSE    100   // the sleeping time when checking for initialization
 #define uSEC          1000  // a microsecond
 
-#if defined(_OPENMP)
-#define CPU_TIME (clock_gettime( CLOCK_REALTIME, &ts ), (double)ts.tv_sec + \
-		  (double)ts.tv_nsec * 1e-9)
 
-#define CPU_TIME_th (clock_gettime( CLOCK_THREAD_CPUTIME_ID, &myts ), (double)myts.tv_sec +	\
-		     (double)myts.tv_nsec * 1e-9)
+#if defined(_OPENMP)
+#define CPU_TIME ({struct  timespec ts; clock_gettime( CLOCK_REALTIME, &ts ), (double)ts.tv_sec + \
+		    (double)ts.tv_nsec * 1e-9};)
+
+#define CPU_TIME_th ({struct  timespec ts; clock_gettime( CLOCK_THREAD_CPUTIME_ID, &ts ), (double)ts.tv_sec + \
+					     (double)ts.tv_nsec * 1e-9;})
 
 #else
 
-#define CPU_TIME (clock_gettime( CLOCK_PROCESS_CPUTIME_ID, &ts ), (double)ts.tv_sec + \
-		  (double)ts.tv_nsec * 1e-9)
+#define CPU_TIME ({struct  timespec ts; clock_gettime( CLOCK_PROCESS_CPUTIME_ID, &ts ), (double)ts.tv_sec + \
+					  (double)ts.tv_nsec * 1e-9;})
 #endif
 
 
@@ -85,7 +85,6 @@ int main( int argc, char **argv )
   int max_value = max_default;
   int chunk     = N / chunk_default;
   
-  struct  timespec ts;
 
   /*  -----------------------------------------------------------------------------
    *   initialize 
@@ -108,8 +107,16 @@ int main( int argc, char **argv )
   double result = 0;
 
   int *array = (int*)malloc( N*sizeof(double) );
+
+
   
 #if !defined(_OPENMP)
+
+  /*  -----------------------------------------------------------------------------
+   *   SERIAL RUN
+   *  -----------------------------------------------------------------------------
+   */
+
   
   printf("serial summation\n" );
 
@@ -150,8 +157,12 @@ int main( int argc, char **argv )
   #endif
 
 #else
-			   
-  
+
+  /*  -----------------------------------------------------------------------------
+   *   PARALLEL RUN
+   *  -----------------------------------------------------------------------------
+   */
+
 
   double tstart = CPU_TIME;
 			     
@@ -162,11 +173,19 @@ int main( int argc, char **argv )
     {
       int idx   = 0;
       int first = 0;
-      int last  = chunk;
+      int last  = chunk
+	;
      #if defined (MIMIC_SLOWER_INITIALIZATION)
+      //
+      // when compiling with this option, data are
+      // initialized in random chunks with a random
+      // pause within one chunk and the subsequeunt
+      //
+      
       struct timespec nanot = {0, 200*uSEC};
       nanosleep( &nanot, NULL );
      #endif
+      
      #if defined(DEBUG)
       struct timespec myts;
       double tstart = CPU_TIME_th;
@@ -183,7 +202,7 @@ int main( int argc, char **argv )
 		 me, CPU_TIME_th - tstart, first, last);
 
 	 #pragma omp task firstprivate(first, last) shared(result) untied
-	  // note: by scoping rules, variables "first" and "last"
+	  // note: by default rules on the scope, variables "first" and "last"
 	  // would have been automatically firstprivate since they
 	  // are local private variables in the enclosing single
 	  // region
@@ -204,7 +223,7 @@ int main( int argc, char **argv )
 	  }
 	  
 	 #pragma omp task firstprivate(first, last) shared(result) untied
-	  // note: by scoping rules, variables "first" and "last"
+	  // note: by default rules on the scope, variables "first" and "last"
 	  // would have been automatically firstprivate since they
 	  // are local private variables in the enclosing single
 	  // region
@@ -224,7 +243,7 @@ int main( int argc, char **argv )
 	  }
 	  
 	 #pragma omp task firstprivate(first, last) shared(result) untied
-	  // note: by scoping rules, variables "first" and "last"
+	  // note: by default rules on the scope, variables "first" and "last"
 	  // would have been automatically firstprivate since they
 	  // are local private variables in the enclosing single
 	  // region

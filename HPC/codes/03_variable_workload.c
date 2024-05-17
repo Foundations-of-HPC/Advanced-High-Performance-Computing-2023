@@ -39,16 +39,16 @@
 
 
 #if defined(_OPENMP)
-#define CPU_TIME (clock_gettime( CLOCK_REALTIME, &ts ), (double)ts.tv_sec + \
-                  (double)ts.tv_nsec * 1e-9)
+#define CPU_TIME ({struct  timespec ts; clock_gettime( CLOCK_REALTIME, &ts ), (double)ts.tv_sec + \
+		    (double)ts.tv_nsec * 1e-9};)
 
-#define CPU_TIME_th (clock_gettime( CLOCK_THREAD_CPUTIME_ID, &myts ), (double)myts.tv_sec +     \
-                     (double)myts.tv_nsec * 1e-9)
+#define CPU_TIME_th ({struct  timespec ts; clock_gettime( CLOCK_THREAD_CPUTIME_ID, &ts ), (double)ts.tv_sec + \
+					     (double)ts.tv_nsec * 1e-9;})
 
 #else
 
-#define CPU_TIME (clock_gettime( CLOCK_PROCESS_CPUTIME_ID, &ts ), (double)ts.tv_sec + \
-                  (double)ts.tv_nsec * 1e-9)
+#define CPU_TIME ({struct  timespec ts; clock_gettime( CLOCK_PROCESS_CPUTIME_ID, &ts ), (double)ts.tv_sec + \
+					  (double)ts.tv_nsec * 1e-9;})
 #endif
 
 // -------------------------------------------------------------
@@ -58,7 +58,14 @@
 // how much workload will be assigne to each task
 // see below, around lines 215, 245
 //
-#if defined(TASKS_GRANULARITY )
+
+#if !defined(TASKS_GRANULARITY )
+
+
+// when compiling with this option, a single task will execute TASK_GRANULARITY
+// iterations od the for loop.
+// To activate that, compile adding -DTASK_GRANULARITY=#INT_VALUE
+//
 
 #define ROUND_N_TO_GRANULARITY {N += (N%TASKS_GRANULARITY);   printf("tasks will be created with granularity: %d\n", TASKS_GRANULARITY);}
 #define CREATE_TASKS for ( int i = 0; i < N; i+= TASKS_GRANULARITY )
@@ -106,7 +113,7 @@ char *TIMINGS_NAMES[] = {"RANDOM work", "DECREASING work"};
 
 // -------------------------------------------------------------
 
-double heavy_work( int N );
+double heavy_work( int N );   // a nonsense routine that just crunches floating point ops
 
 
 
@@ -117,7 +124,7 @@ int main( int argc, char **argv )
   int N = 10000;
   int workload = 40000;
   double wtstart, wtend;
-  struct  timespec ts;
+  
 
   
   if ( argc > 1 )
@@ -153,6 +160,14 @@ int main( int argc, char **argv )
     {
       printf("shot %d/%d.. ", R+1, REPETITIONS);
       fflush(stdout);
+
+      /* ······················································ *
+       *                                                        *
+       *  First, we run the random work and the randomly        *
+       *  decreasing work with standard for loops               *
+       *                                                        *
+       * ······················································ */
+
       
       // ----------------------------------------------------- random work, FOR  
       wtstart = CPU_TIME;
@@ -196,7 +211,13 @@ int main( int argc, char **argv )
       wtend = CPU_TIME;
       wtimings[DECR_WORK][FOR] += wtend - wtstart;
 
-      // ----------------------------------------------------- TASKS
+
+      /* ······················································ *
+       *                                                        *
+       *  Now, we run the random work and the randomly          *
+       *  decreasing work using TASKS                           *
+       *                                                        *
+       * ······················································ */
 
       unsigned int seeds[nthreads];
 
@@ -262,6 +283,14 @@ int main( int argc, char **argv )
       wtimings[DECR_WORK][TASKS] += wtend - wtstart;
     }    
 
+
+  /* ······················································ *
+   *                                                        *
+   *  Here below we collect the data on timings             *
+   *                                                        *
+   * ······················································ */
+
+  
   double INV_REP = 1.0 / REPETITIONS;
   for ( int k = 0; k < NTIMINGS; k++ )
     {
@@ -287,14 +316,24 @@ int main( int argc, char **argv )
 		 wtimings[k][j]*INV_REP, timings[k][j][0]*INV_REP, std_dev*INV_REP, min_timings[k][j]*INV_REP, max_timings[k][j]*INV_REP );
 	}
     }
+
   
  #if defined(DEBUG)
   for ( int t = 0; t < nthreads; t++ )
     printf("thread %d has processed %u tasks\n", t, howmanytasks[t] );
  #endif
+
+  
   return 0;
 }
 
+
+// 
+// ----------------------------------------------
+//
+//  crunching numbers without having either
+//  overflows or underflows
+// 
 
 double heavy_work( int N )
 {
